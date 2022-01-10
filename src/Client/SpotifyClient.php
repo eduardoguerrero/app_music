@@ -74,7 +74,7 @@ class SpotifyClient
             break;
         } while ($attempts < self::ATTEMPTS);
 
-        return $this->toArray($response);
+        return $this->parseResponse($this->toArray($response));
     }
 
     /**
@@ -162,5 +162,45 @@ class SpotifyClient
     public function isValidResponse(ResponseInterface $response, int $expectedStatus): bool
     {
         return $response->getStatusCode() === $expectedStatus;
+    }
+
+    /**
+     * @param array $albums
+     * @return array
+     */
+    public function parseResponse(array $albums): array
+    {
+        $response = [];
+        $items = $albums['albums']['items'];
+        foreach ($items as $item) {
+            $element = [
+                'name' => $item['name'],
+                'release_date' => $item['release_date'],
+                'tracks' => $item['total_tracks'],
+                'cover' => $this->getCovers($item['images']),
+            ];
+            $response[] = $element;
+        }
+
+        return $response;
+    }
+
+    /**
+     * @param array $items
+     * @return array
+     */
+    public function getCovers(array $items)
+    {
+        $covers = [];
+        foreach ($items as $item) {
+            $element = [
+                'height' => $item['height'],
+                'url' => $item['url'],
+                'width' => $item['width']
+            ];
+            $covers[] = $element;
+        }
+
+        return $covers;
     }
 }
