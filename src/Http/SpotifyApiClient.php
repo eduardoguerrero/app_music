@@ -23,18 +23,6 @@ class SpotifyApiClient
     /** @var mixed */
     protected $makeClient;
 
-    /** @var string */
-    public $baseUri;
-
-    /** @var string */
-    public $baseUriAuth;
-
-    /** @var string */
-    public $clientId;
-
-    /** @var string */
-    public $clientSecret;
-
     /**
      * SpotifyApiClient constructor.
      * @param array $spotifyApi
@@ -42,10 +30,6 @@ class SpotifyApiClient
     public function __construct(array $spotifyApi)
     {
         $this->makeClient = new ClientFactory($spotifyApi);
-        $this->baseUri = $spotifyApi['base_uri'];
-        $this->baseUriAuth = $spotifyApi['base_uri_auth'];
-        $this->clientId = $spotifyApi['client_id'];
-        $this->clientSecret = $spotifyApi['client_secret'];
     }
 
     /**
@@ -68,6 +52,8 @@ class SpotifyApiClient
     }
 
     /**
+     * send an HTTP request.
+     *
      * @param string $method
      * @param string $uri
      * @param array $options
@@ -76,13 +62,14 @@ class SpotifyApiClient
      */
     public function request(string $method, string $uri, array $options = [])
     {
+        $dataOptions = [];
         if (array_key_exists('formParams', $options)) {
-            $data['form_params'] = $options['formParams'];
-            $data['headers'] = ['Content-Type' => 'application/x-www-form-urlencoded'];
+            $dataOptions['form_params'] = $options['formParams'];
+            $dataOptions['headers'] = ['Content-Type' => 'application/x-www-form-urlencoded'];
         }
 
         if (array_key_exists('authorization', $options)) {
-            $data['headers'] = [
+            $dataOptions['headers'] = [
                 'Authorization' => 'Bearer ' . $options['authorization']['token'],
                 'Accept' => 'application/json',
             ];
@@ -90,7 +77,7 @@ class SpotifyApiClient
 
         $client = $this->getClient();
 
-        return $client->request($method, $uri, $data);
+        return $client->request($method, $uri, $dataOptions);
     }
 
 }

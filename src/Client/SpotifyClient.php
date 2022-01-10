@@ -11,6 +11,9 @@ use App\Http\SpotifyApiClient;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\Storage\NativeSessionStorage;
 
 /**
  * Class SpotifyClient
@@ -22,11 +25,15 @@ class SpotifyClient
     /** @var SpotifyApiClient */
     protected $spotifyApiClient;
 
-    /** @var string */
-    public $clientId;
+    protected $session;
 
     /** @var string */
-    public $clientSecret;
+    protected $clientId;
+
+    /** @var string */
+    protected $clientSecret;
+
+    public const ATTEMPTS = 2;
 
     /**
      * SpotifyClient constructor.
@@ -42,33 +49,77 @@ class SpotifyClient
 
     /**
      * @param string $bandName
-     * @return array
+     * @return array|ResponseInterface
+     * @throws ClientGetTokenException
      * @throws GuzzleException
      */
     public function getAlbumsByBandName(string $bandName)
     {
-        $token = 'BQDKNR1XOj5PYH6uWvWgKwQdpbwYwalRJkSz6egr3wROIhRjyVMg7X88QAvITfbtv86wzmuyC9GkoFFF0D0';
-        $client = $this->spotifyApiClient->setClient(ClientFactory::CLIENT_TYPE_API);
-        $data['authorization'] = [
-            'token' => $token,
-            'headers' => [
-                'Authorization' => 'Bearer ' . $token,
-                'Accept' => 'application/json',
-            ]
-        ];
-        $response = $client->request('GET', sprintf('search?q=artist:%s&type=album&market=ES&limit=10&offset=5', $bandName), $data);
+        $response = [];
+        $attempts = 0;
+        do {
+            try {
+                $client = $this->spotifyApiClient->setClient(ClientFactory::CLIENT_TYPE_API);
+                $token = $this->getSessionToken();
+                $response = $client->request('GET', sprintf('search?q=artist:%s&type=album&market=ES&limit=10&offset=5', $bandName), [
+                    'authorization' => ['token' => $token]
+                ]);
+                $attempts++;
+            } catch (\Exception $e) {
+                $attempts++;
+                if ($e->getCode() === Response::HTTP_UNAUTHORIZED) {
+                    $this->generateToken();
+                }
+            }
+            break;
+        } while ($attempts < self::ATTEMPTS);
 
         return $this->toArray($response);
     }
 
     /**
-     * Get token
+     * @param string $token
+     */
+    public function setSessionToken(string $token)
+    {
+        $session = $this->createSession();
+        $session->set('spotify_access_token', $token);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getSessionToken(): ?string
+    {
+        $session = $this->createSession();
+        if (!$session->has('spotify_access_token')) {
+            $session->set('spotify_access_token', 'spotify_access_token');
+        }
+
+        return $session->get('spotify_access_token');
+    }
+
+    /**
+     * @return Session
+     */
+    public function createSession(): Session
+    {
+        $this->session = new Session(new NativeSessionStorage(), new AttributeBag());
+        if (empty($this->session)) {
+            $this->session->start();
+        }
+
+        return $this->session;
+    }
+
+    /**
+     * Generate token
      *
      * @return mixed
      * @throws ClientGetTokenException
      * @throws GuzzleException
      */
-    public function getToken()
+    public function generateToken()
     {
         $client = $this->spotifyApiClient->setClient(ClientFactory::CLIENT_TYPE_AUTH);
         $data['formParams'] = [
@@ -80,18 +131,24 @@ class SpotifyClient
         if (!$this->isValidResponse($response, Response::HTTP_OK)) {
             throw new ClientGetTokenException(sprintf('There is an error: %s', $response->getBody()));
         }
+        $accessToken = $this->toArray($response)['access_token'];
+        $this->setSessionToken($accessToken);
 
-        return $this->toArray($response)['access_token'];
+        return $accessToken;
     }
 
     /**
      * Parse response to array
      *
-     * @param ResponseInterface $response
+     * @param $response
      * @return array
      */
-    public function toArray(ResponseInterface $response): array
+    public function toArray($response): array
     {
+        if (is_array($response)) {
+            return $response;
+        }
+
         return json_decode($response->getBody()->getContents(), true);
     }
 

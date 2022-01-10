@@ -9,7 +9,7 @@ namespace App\Factory;
 use GuzzleHttp\Client;
 
 /**
- * Class abstractClient
+ * Class AbstractClient
  * @package App\Factory
  */
 class AbstractClient
@@ -19,7 +19,7 @@ class AbstractClient
     protected $client;
 
     /**
-     * Create a GuzzleHttp client taking into account base uri, there are two base url to execute requests to Spotify.
+     * Create a GuzzleHttp client, there are two base url (create token and execute requests to API)
      *
      * @param string $uri
      * @return Client
@@ -27,7 +27,12 @@ class AbstractClient
     public function createClient(string $uri)
     {
         if (!$this->client) {
-            $this->client = new Client(['base_uri' => $uri]);
+            $this->client = new Client([
+                'base_uri' => $uri,
+                'request.options' => [
+                    'exceptions' => false,
+                ]
+            ]);
         }
 
         return $this->client;
