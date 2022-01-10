@@ -1,3 +1,3 @@
-#index:
-#    path: /
-#    controller: App\Controller\DefaultController::index
+spotify_api:
+  resource: 'routes_spotify_api.yaml'
+  prefix: /api/v1/

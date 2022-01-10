@@ -1,0 +1,6 @@
+parameters:
+  app.spotify.auth.options: {
+      base_url: 'https://accounts.spotify.com',
+      client_id: '214fd0ed58db4065ba01aeff9ff14614',
+      client_secret: 'bc48a2ff6eb740cc85aadb6950bc5847'
+  }

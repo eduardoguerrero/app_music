@@ -1,0 +1,4 @@
+get_albums_by_band_name:
+  methods: GET
+  path: albums/{bandName}
+  controller: service.controller.spotify::getAlbumsByBandName
